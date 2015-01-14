@@ -1,0 +1,17 @@
+{
+  "name": "jsc-vim",
+  "version": "0.1.0",
+  "description": "Javascript comment generator for VIM",
+  "main": "index.js",
+  "dependencies": {
+    "esprima": "^1.2.2",
+    "estraverse": "^1.9.1",
+    "etpl": "^3.0.0"
+  },
+  "devDependencies": {},
+  "author": {
+    "name": "treelite",
+    "email": "c.xinle@gmail.com"
+  },
+  "license": "ISC"
+}
