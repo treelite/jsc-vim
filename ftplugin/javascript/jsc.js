@@ -15,24 +15,39 @@ etpl.config({
 });
 etpl.compile(fs.readFileSync(path.resolve(__dirname, 'jsc.tpl'), 'utf8'));
 
+/**
+ * 变量类型对应关系
+ *
+ * @const
+ * @type {Object}
+ */
 var EXP_TYPE = {};
 EXP_TYPE[SYNTAX.ArrayExpression] = 'Array';
 EXP_TYPE[SYNTAX.ObjectExpression] = 'Object';
 EXP_TYPE[SYNTAX.FunctionExpression] = 'Function';
 
+/**
+ * 判断变量名是否是类名
+ * 首字母大写
+ *
+ * @param {string} name
+ * @return {boolean}
+ */
 function isClassName(name) {
     var charCode = name.charCodeAt(0);
     return charCode >= 65 && charCode <= 90;
 }
 
+// 注释生成处理器
 var handlers = {};
 
+// 变量声明处理器
 handlers.var = function (ast) {
     var res = {};
     var name = ast.declarations[0].id.name;
 
     // 判断是否是常量
-    if (/^[A-Z]+$/.test(name)) {
+    if (/^[A-Z_]+$/.test(name)) {
         res.isConst = true;
     }
 
@@ -58,6 +73,7 @@ handlers.var = function (ast) {
     return res;
 };
 
+// 函数声明处理器
 handlers.fn = function (ast) {
     var res = {params: []};
 
@@ -95,6 +111,11 @@ handlers.fn = function (ast) {
     return res;
 };
 
+/**
+ * 输出注释
+ *
+ * @param {string} code
+ */
 function generate(code) {
     var ast = esprima.parse(code);
     var stat = ast.body[0];
