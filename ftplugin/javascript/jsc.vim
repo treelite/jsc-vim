@@ -13,7 +13,9 @@ let s:root = expand('<sfile>:p:h')
 " 获取光标所在行完整的代码块
 function s:getBlock(token)
     let startLine = line('.')
-    let endToken = a:token == '{' ? '}' : ']'
+    " 搜索之前设置到当前行的起始位置
+    " search默认是从当前光标处开始搜索
+    call cursor(startLine, 1)
     let found = search(a:token, '', startLine)
 
     if !found
