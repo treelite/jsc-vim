@@ -25,7 +25,8 @@ function s:nextPos(lnum, col, direction, start, end)
     elseif res.lnum > a:end
         let res.lnum = a:start + 1
     endif
-    let res.col = a:direction > 0 ? 1 : 999
+    let indentNum = indent(res.lnum)
+    let res.col = a:direction > 0 ? indentNum + 1 : 999
     return res
 endfunction
 
