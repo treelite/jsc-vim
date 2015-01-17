@@ -28,6 +28,8 @@ Done!
 
 Use `:JSC` to insert comment and then the cursor will auto locate on the place where you need writing more information.
 
+When the cursor is in multi line comment, you can use `:JSCnext` to locate next position, of course move to previous position is `:JSCprev`.
+
 ## Tips
 
 Quick mapping in your `~/.vimrc`:
