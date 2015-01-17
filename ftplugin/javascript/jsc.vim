@@ -42,6 +42,7 @@ function s:findPos(lnum, col, direction, start, end)
     let sd = a:direction > 0 ? '' : 'b'
     let curLine = getline(a:lnum)
 
+    " 特殊处理第一个内容行
     if a:lnum == a:start + 1
         if a:direction * (indentNum + 2 - a:col) > 0
             let res = {}
@@ -53,6 +54,7 @@ function s:findPos(lnum, col, direction, start, end)
         endif
     endif
 
+    " 其它情况下都去寻找一个空格后面的位置
     if match(curLine, '^\s\+\*\s@') == 0
         call cursor(a:lnum, a:col)
         let npos = searchpos('\s[^@*]', 'n'.sd, a:lnum)
@@ -130,6 +132,8 @@ function s:generate()
     let rawCursor = getpos('.')
     let code = []
 
+    " TODO
+    " 需要重构下
     if match(curLine, '^\s*function ') == 0
         let code = s:getBlock('{')
     elseif match(curLine, '^\s*var ') == 0
