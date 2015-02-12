@@ -53,11 +53,14 @@ handlers.var = function (ast) {
 
     // 判断变量类型
     var init = ast.declarations[0].init;
-    if (init.type === SYNTAX.Literal) {
+    if (!init) {
+        res.type = '*'
+    }
+    else if (init.type === SYNTAX.Literal) {
         res.type = typeof init.value;
     }
     else {
-        res.type = EXP_TYPE[init.type];
+        res.type = EXP_TYPE[init.type] || '*'
     }
 
     if (res.type === 'Function'
@@ -65,9 +68,6 @@ handlers.var = function (ast) {
         && isClassName(name)
     ) {
         res.isClass = true;
-    }
-    else if (!res.type) {
-        res.type = '*';
     }
 
     return res;
