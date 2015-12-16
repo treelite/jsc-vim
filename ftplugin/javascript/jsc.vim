@@ -135,7 +135,7 @@ if !exists('g:jsc_prev_key') || g:jsc_prev_key == ''
     let g:jsc_prev_key = '<D-K>'
 endif
 if !exists('g:jsc_next_key') || g:jsc_next_key == ''
-    let g:jsc_prev_key = '<D-J>'
+    let g:jsc_next_key = '<D-J>'
 endif
 
 exe 'nmap '.g:jsc_insert_key.' :JSC<CR>'
