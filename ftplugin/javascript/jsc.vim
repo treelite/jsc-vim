@@ -88,22 +88,6 @@ function s:locate(direction)
     call cursor(newPos.lnum, newPos.col)
 endfunction
 
-" 获取光标所在行完整的代码块
-function s:getBlock(token)
-    let startLine = line('.')
-    " 搜索之前设置到当前行的起始位置
-    " search默认是从当前光标处开始搜索
-    call cursor(startLine, 1)
-    let found = search(a:token, '', startLine)
-
-    if !found
-        return []
-    endif
-
-    normal %
-    return getline(startLine, line('.'))
-endfunction
-
 " 添加注释
 function s:comment(cursor, code)
     let isSingle = strpart(a:code, 1, 1) == '/'
@@ -120,44 +104,40 @@ function s:comment(cursor, code)
 endfunction
 
 " 调用外部命令生成注释
-function s:parse(code)
+function s:parse(lineNum, code)
     let cmd = ['node']
     call add(cmd, s:root.'/jsc.js')
+    call add(cmd, a:lineNum)
     return system(join(cmd, ' '), a:code)
 endfunction
 
 " main
 function s:generate()
-    let curLine = getline('.')
-    let rawCursor = getpos('.')
-    let code = []
-
-    " TODO
-    " 需要重构下
-    if match(curLine, '^\s*function ') == 0
-        let code = s:getBlock('{')
-    elseif match(curLine, '^\s*var ') == 0
-        for token in ['{', '[']
-            let code = s:getBlock(token)
-            if len(code) > 0
-                break
-            endif
-        endfor
-        if len(code) <= 0
-            call insert(code, curLine)
-        endif
-    endif
-
-    if len(code) <= 0
+    let code = getline(1, '$')
+    let cmt = s:parse(line('.'), join(code, "\n"))
+    if strlen(cmt) <= 0
         let cmt = '// '
-    else
-        let cmt = s:parse(join(code, "\n"))
     endif
 
-    call s:comment(rawCursor, cmt)
+    call s:comment(getpos('.'), cmt)
 endfunction
 
 " 命令注册
 command JSC call s:generate()
 command JSCnext call s:locate(1)
 command JSCprev call s:locate(-1)
+
+" 按键注册
+if !exists('g:jsc_insert_key') || g:jsc_insert_key == ''
+    let g:jsc_insert_key = '<C-i>'
+endif
+if !exists('g:jsc_prev_key') || g:jsc_prev_key == ''
+    let g:jsc_prev_key = '<D-K>'
+endif
+if !exists('g:jsc_next_key') || g:jsc_next_key == ''
+    let g:jsc_prev_key = '<D-J>'
+endif
+
+exe 'nmap '.g:jsc_insert_key.' :JSC<CR>'
+exe 'nmap '.g:jsc_prev_key.' :JSCprev<CR>'
+exe 'nmap '.g:jsc_next_key.' :JSCnext<CR>'

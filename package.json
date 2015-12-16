@@ -4,8 +4,8 @@
   "description": "JavaScript comment generator for VIM",
   "main": "index.js",
   "dependencies": {
-    "esprima": "^1.2.2",
-    "estraverse": "^1.9.1",
+    "esprima": "^2.7.1",
+    "estraverse": "^4.1.1",
     "etpl": "^3.0.0"
   },
   "author": {

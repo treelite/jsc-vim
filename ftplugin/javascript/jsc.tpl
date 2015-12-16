@@ -26,3 +26,29 @@
  * @return {}
 <!-- /if -->
  */
+
+<!-- target: cls -->
+/**
+ * 
+ *
+ * @class
+ <!-- if: ${superClass} -->
+ * @extends ${superClass}
+ <!-- /if -->
+ */
+
+<!-- target: method -->
+/**
+ * 
+ *
+ * @public
+<!-- if: ${isConstructor} -->
+ * @constructor
+<!-- /if -->
+<!-- for: ${params} as ${param} -->
+ * @param {} ${param}
+<!-- /for -->
+<!-- if: ${hasReturn} -->
+ * @return {}
+<!-- /if -->
+ */
