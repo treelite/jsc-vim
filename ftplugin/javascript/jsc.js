@@ -182,7 +182,11 @@ handlers.fn = function (ast) {
  * @param {number} lineNum 光标所在行号
  */
 function generate(code, lineNum) {
-    var ast = esprima.parse(code, {loc: true});
+    var options = {loc: true};
+    if (/^(import|export)\s/m.test(code)) {
+        options.sourceType = 'module';
+    }
+    var ast = esprima.parse(code, options);
 
     estraverse.traverse(ast, {
         enter: function (node) {
