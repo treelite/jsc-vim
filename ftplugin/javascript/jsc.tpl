@@ -19,6 +19,15 @@
 <!-- if: ${isClass} -->
  * @class
 <!-- /if -->
+<!-- if: ${isPublic} -->
+ * @public
+<!-- /if -->
+<!-- if: ${isPrivate} -->
+ * @private
+<!-- /if -->
+<!-- if: ${isConstructor} -->
+ * @constructor
+<!-- /if -->
 <!-- for: ${params} as ${param} -->
  * @param {} ${param}
 <!-- /for -->
@@ -35,20 +44,4 @@
  <!-- if: ${superClass} -->
  * @extends ${superClass}
  <!-- /if -->
- */
-
-<!-- target: method -->
-/**
- * 
- *
- * @public
-<!-- if: ${isConstructor} -->
- * @constructor
-<!-- /if -->
-<!-- for: ${params} as ${param} -->
- * @param {} ${param}
-<!-- /for -->
-<!-- if: ${hasReturn} -->
- * @return {}
-<!-- /if -->
  */

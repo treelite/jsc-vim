@@ -38,6 +38,8 @@ NODE_TYPE[SYNTAX.VariableDeclaration] = 'var';
 NODE_TYPE[SYNTAX.FunctionDeclaration] = 'fn';
 NODE_TYPE[SYNTAX.ClassDeclaration] = 'cls';
 NODE_TYPE[SYNTAX.MethodDefinition] = 'method';
+NODE_TYPE[SYNTAX.ExportNamedDeclaration] = 'define';
+NODE_TYPE[SYNTAX.ExportDefaultDeclaration] = 'define';
 
 /**
  * 判断变量名是否是类名
@@ -140,6 +142,8 @@ handlers.cls = function (ast) {
 handlers.method = function (ast) {
     var res = {
         isConstructor: ast.kind === 'constructor',
+        isPublic: true,
+        target: 'fn',
         params: []
     };
 
@@ -175,6 +179,19 @@ handlers.fn = function (ast) {
     return res;
 };
 
+// export 处理
+handlers.define = function (ast) {
+    var ast = ast.declaration;
+    var type = NODE_TYPE[ast.type];
+    if (!type) {
+        return;
+    }
+    var res = handlers[type](ast);
+    res.isPublic = true;
+    res.target = type;
+    return res;
+};
+
 /**
  * 输出注释
  *
@@ -194,10 +211,11 @@ function generate(code, lineNum) {
                 return;
             }
             if (node.loc.start.line === lineNum) {
+                var data;
                 var type = NODE_TYPE[node.type];
-                if (type) {
-                    var data = handlers[type](node);
-                    var cmt = etpl.render(type, data);
+                if (type && (data = handlers[type](node))) {
+                    var target = data.target || type;
+                    var cmt = etpl.render(target, data);
                     cmt = cmt.replace(/\n\n+/g, '\n');
                     process.stdout.write(cmt);
                 }
