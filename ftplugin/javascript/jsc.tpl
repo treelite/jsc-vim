@@ -31,8 +31,8 @@
 <!-- for: ${params} as ${param} -->
  * @param {} ${param}
 <!-- /for -->
-<!-- if: ${hasReturn} -->
- * @return {}
+<!-- if: ${returnType} -->
+ * @return {${returnType}}
 <!-- /if -->
  */
 

@@ -61,28 +61,27 @@ function isClassName(name) {
  */
 function detectVariableType(ast) {
     var type;
-    var init = ast.declarations[0].init;
-    if (!init) {
+    if (!ast) {
         type = '*';
     }
-    else if (init.type === SYNTAX.Literal) {
-        type = typeof init.value;
+    else if (ast.type === SYNTAX.Literal) {
+        type = typeof ast.value;
     }
     else {
-        type = EXP_TYPE[init.type] || '*';
+        type = EXP_TYPE[ast.type] || '*';
     }
 
     return type;
 }
 
 /**
- * 寻找函数的返回值
+ * 确定函数的返回值的类型
  *
  * @param {Object} ast AST 节点
- * @return {boolean}
+ * @return {!string}
  */
-function detectReturnValue(ast) {
-    var res = false;
+function detectReturnType(ast) {
+    var type;
     estraverse.traverse(ast.body, {
         enter: function (node) {
             if (node.type === SYNTAX.VariableDeclaration
@@ -92,12 +91,12 @@ function detectReturnValue(ast) {
                 return estraverse.VisitorOption.Skip;
             }
             else if (node.type === SYNTAX.ReturnStatement && node.argument) {
-                res = true;
+                type = detectVariableType(node.argument);
                 return estraverse.VisitorOption.Break;
             }
         }
     });
-    return res;
+    return type;
 }
 
 // 注释生成处理器
@@ -114,7 +113,7 @@ handlers.var = function (ast) {
     }
 
     // 判断变量类型
-    res.type = detectVariableType(ast);
+    res.type = detectVariableType(ast.declarations[0].init);
 
     if (res.type === 'Function'
         && !res.isConst
@@ -151,7 +150,7 @@ handlers.method = function (ast) {
         res.params.push(item.name);
     });
 
-    res.hasReturn = detectReturnValue(ast.value);
+    res.returnType = detectReturnType(ast.value);
 
     return res;
 };
@@ -174,7 +173,7 @@ handlers.fn = function (ast) {
         return res;
     }
 
-    res.hasReturn = detectReturnValue(ast);
+    res.returnType = detectReturnType(ast);
 
     return res;
 };
