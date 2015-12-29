@@ -165,8 +165,11 @@ handlers.fn = function (ast) {
     });
 
     // 判断是否是class
-    var name = ast.id.name;
-    res.isClass = isClassName(name);
+    // 可能是匿名的 function 定义
+    if (ast.id) {
+        var name = ast.id.name;
+        res.isClass = isClassName(name);
+    }
 
     // 如果是class就不用找return了
     if (res.isClass) {
