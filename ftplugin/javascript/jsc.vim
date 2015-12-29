@@ -115,6 +115,13 @@ endfunction
 function s:generate()
     let code = getline(1, '$')
     let cmt = s:parse(line('.'), join(code, "\n"))
+
+    " 显示错误信息
+    if v:shell_error != 0
+        echo cmt
+        return
+    endif
+
     if strlen(cmt) <= 0
         let cmt = '// '
     endif
