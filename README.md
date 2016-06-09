@@ -37,3 +37,7 @@ Quick mapping in your `~/.vimrc`:
 ```vim
 nmap <C-i> :JSC<CR>
 ```
+
+## License
+
+MIT

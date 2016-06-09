@@ -12,5 +12,6 @@
     "name": "treelite",
     "email": "c.xinle@gmail.com"
   },
-  "license": "ISC"
+  "repository": "https://github.com/treelite/jsc-vim",
+  "license": "MIT"
 }
