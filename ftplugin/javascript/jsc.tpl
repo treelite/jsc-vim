@@ -1,6 +1,6 @@
 <!-- target: var -->
 /**
- * 
+ *
  *
 <!-- if: ${isClass} -->
  * @class
@@ -14,7 +14,7 @@
 
 <!-- target: fn -->
 /**
- * 
+ *
  *
 <!-- if: ${isClass} -->
  * @class
@@ -38,10 +38,16 @@
 
 <!-- target: cls -->
 /**
- * 
+ *
  *
  * @class
  <!-- if: ${superClass} -->
  * @extends ${superClass}
  <!-- /if -->
+ */
+
+<!-- target: file -->
+/**
+ * @file
+ * @author ${name}(${email})
  */

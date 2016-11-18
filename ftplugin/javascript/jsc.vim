@@ -7,6 +7,23 @@ if exists(':JSC')
     finish
 endif
 
+" 初始化全局变量
+if !exists('g:jsc_insert_key') || g:jsc_insert_key == ''
+    let g:jsc_insert_key = '<C-i>'
+endif
+if !exists('g:jsc_prev_key') || g:jsc_prev_key == ''
+    let g:jsc_prev_key = '<D-K>'
+endif
+if !exists('g:jsc_next_key') || g:jsc_next_key == ''
+    let g:jsc_next_key = '<D-J>'
+endif
+if !exists('g:jsc_author')
+    let g:jsc_author = ''
+endif
+if !exists('g:jsc_email')
+    let g:jsc_email = ''
+endif
+
 " 获取当前脚本的路径
 let s:root = expand('<sfile>:p:h')
 
@@ -108,6 +125,8 @@ function s:parse(lineNum, code)
     let cmd = ['node']
     call add(cmd, s:root.'/jsc.js')
     call add(cmd, a:lineNum)
+    call add(cmd, g:jsc_author)
+    call add(cmd, g:jsc_email)
     return system(join(cmd, ' '), a:code)
 endfunction
 
@@ -135,16 +154,6 @@ command JSCnext call s:locate(1)
 command JSCprev call s:locate(-1)
 
 " 按键注册
-if !exists('g:jsc_insert_key') || g:jsc_insert_key == ''
-    let g:jsc_insert_key = '<C-i>'
-endif
-if !exists('g:jsc_prev_key') || g:jsc_prev_key == ''
-    let g:jsc_prev_key = '<D-K>'
-endif
-if !exists('g:jsc_next_key') || g:jsc_next_key == ''
-    let g:jsc_next_key = '<D-J>'
-endif
-
 exe 'nmap '.g:jsc_insert_key.' :JSC<CR>'
 exe 'nmap '.g:jsc_prev_key.' :JSCprev<CR>'
 exe 'nmap '.g:jsc_next_key.' :JSCnext<CR>'

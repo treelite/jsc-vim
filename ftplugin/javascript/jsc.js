@@ -200,7 +200,11 @@ handlers.define = function (ast) {
  * @param {string} code 代码
  * @param {number} lineNum 光标所在行号
  */
-function generate(code, lineNum) {
+function generate(code, lineNum, author, email) {
+    if (lineNum === 1) {
+        return process.stdout.write(etpl.render('file', {name: author, email: email}));
+    }
+
     var options = {loc: true};
     if (/^(import|export)\s/m.test(code)) {
         options.sourceType = 'module';
@@ -240,5 +244,7 @@ process.stdin.on('readable', function () {
 
 process.stdin.on('end', function () {
     var lineNum = parseInt(process.argv[2], 10);
-    generate(code.join(''), lineNum);
+    var author = process.argv[3];
+    var email = process.argv[4];
+    generate(code.join(''), lineNum, author, email);
 });
