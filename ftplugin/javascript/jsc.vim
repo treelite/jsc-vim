@@ -125,6 +125,7 @@ function s:parse(lineNum, code)
     let cmd = ['node']
     call add(cmd, s:root.'/jsc.js')
     call add(cmd, a:lineNum)
+    call add(cmd, expand('%:p'))
     call add(cmd, g:jsc_author)
     call add(cmd, g:jsc_email)
     return system(join(cmd, ' '), a:code)

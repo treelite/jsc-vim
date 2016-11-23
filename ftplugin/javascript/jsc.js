@@ -6,6 +6,7 @@
 var esprima = require('esprima');
 var estraverse = require('estraverse');
 var SYNTAX = esprima.Syntax;
+var execSync = require('child_process').execSync;
 var etpl = require('etpl');
 var path = require('path');
 var fs = require('fs');
@@ -195,14 +196,40 @@ handlers.define = function (ast) {
 };
 
 /**
+ * 获取用户信息
+ * 尝试从 git 中获取
+ *
+ * @param {string} fileName 文件路径
+ * @param {string} user 默认的用户名
+ * @param {string} email 默认的用户邮箱
+ * @return {Object}
+ */
+function queryUserInfo(fileName, user, email) {
+    let options = {
+        cwd: path.dirname(fileName),
+        encoding: 'utf8'
+    };
+
+    return {
+        user: execSync('git config --get user.name', options).trim() || user,
+        email: execSync('git config --get user.email', options).trim() || email
+    };
+}
+
+/**
  * 输出注释
  *
  * @param {string} code 代码
  * @param {number} lineNum 光标所在行号
+ * @param {string} fileName 文件路径
+ * @param {string} author 默认配置的用户名
+ * @param {string} email 默认配置的邮箱
  */
-function generate(code, lineNum, author, email) {
+function generate(code, lineNum, fileName, author, email) {
+    // 文件头注释
     if (lineNum === 1) {
-        return process.stdout.write(etpl.render('file', {name: author, email: email}));
+        var info = queryUserInfo(fileName, author, email);
+        return process.stdout.write(etpl.render('file', {name: info.user, email: info.email}));
     }
 
     var options = {loc: true};
