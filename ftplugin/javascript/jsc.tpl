@@ -1,4 +1,4 @@
-<!-- target: var -->
+<!-- target: let -->
 /**
  *
  *

@@ -3,18 +3,19 @@
  * @author treelite(c.xinle@gmail.com)
  */
 
-var esprima = require('esprima');
-var estraverse = require('estraverse');
-var SYNTAX = esprima.Syntax;
-var execSync = require('child_process').execSync;
-var etpl = require('etpl');
-var path = require('path');
-var fs = require('fs');
+let babylon = require('babylon');
+let execSync = require('child_process').execSync;
+let etpl = require('etpl');
+let path = require('path');
+let fs = require('fs');
 
 etpl.config({
     strip: true
 });
 etpl.compile(fs.readFileSync(path.resolve(__dirname, 'jsc.tpl'), 'utf8'));
+
+const CMD_SKIP = Symbol('CMD_SKIP');
+const CMD_BREAK = Symbol('CMD_BREAK');
 
 /**
  * 变量类型对应关系
@@ -22,25 +23,20 @@ etpl.compile(fs.readFileSync(path.resolve(__dirname, 'jsc.tpl'), 'utf8'));
  * @const
  * @type {Object}
  */
-var EXP_TYPE = {};
-EXP_TYPE[SYNTAX.ArrayExpression] = 'Array';
-EXP_TYPE[SYNTAX.ObjectExpression] = 'Object';
-EXP_TYPE[SYNTAX.FunctionExpression] = 'Function';
-EXP_TYPE[SYNTAX.ArrowFunctionExpression] = 'Function';
+const EXPRESSION_TYPE = {
+    ArrayExpression: 'Array',
+    ObjectExpression: 'Object',
+    FunctionExpression: 'Function',
+    ArrowFunctionExpression: 'Function'
+};
 
-/**
- * 节点类型对应关系
- *
- * @const
- * @type {Object}
- */
-var NODE_TYPE = {};
-NODE_TYPE[SYNTAX.VariableDeclaration] = 'var';
-NODE_TYPE[SYNTAX.FunctionDeclaration] = 'fn';
-NODE_TYPE[SYNTAX.ClassDeclaration] = 'cls';
-NODE_TYPE[SYNTAX.MethodDefinition] = 'method';
-NODE_TYPE[SYNTAX.ExportNamedDeclaration] = 'define';
-NODE_TYPE[SYNTAX.ExportDefaultDeclaration] = 'define';
+const LITERAL_TYPE = {
+    StringLiteral: 'string',
+    NumericLiteral: 'number',
+    BooleanLiteral: 'boolean',
+    NullLiteral: 'null',
+    RegExpLiteral: 'RegExp'
+};
 
 /**
  * 判断变量名是否是类名
@@ -50,29 +46,26 @@ NODE_TYPE[SYNTAX.ExportDefaultDeclaration] = 'define';
  * @return {boolean}
  */
 function isClassName(name) {
-    var charCode = name.charCodeAt(0);
+    let charCode = name.charCodeAt(0);
     return charCode >= 65 && charCode <= 90;
 }
 
 /**
  * 判断变量类型
  *
- * @param {Object} ast AST 节点
+ * @param {Object} node AST 节点
  * @return {string}
  */
-function detectVariableType(ast) {
-    var type;
-    if (!ast) {
-        type = '*';
-    }
-    else if (ast.type === SYNTAX.Literal) {
-        type = typeof ast.value;
+function detectVariableType(node) {
+    let type;
+    if (node.type.indexOf('Literal') >= 0) {
+        type = LITERAL_TYPE[node.type];
     }
     else {
-        type = EXP_TYPE[ast.type] || '*';
+        type = EXPRESSION_TYPE[node.type];
     }
 
-    return type;
+    return type || '*';
 }
 
 /**
@@ -82,118 +75,139 @@ function detectVariableType(ast) {
  * @return {!string}
  */
 function detectReturnType(ast) {
-    var type;
-    estraverse.traverse(ast.body, {
-        enter: function (node) {
-            if (node.type === SYNTAX.VariableDeclaration
-                || node.type === SYNTAX.FunctionExpression
-                || node.type === SYNTAX.FunctionDeclaration
-            ) {
-                return estraverse.VisitorOption.Skip;
-            }
-            else if (node.type === SYNTAX.ReturnStatement && node.argument) {
-                type = detectVariableType(node.argument);
-                return estraverse.VisitorOption.Break;
-            }
+    let type;
+    traverse(ast.body, node => {
+        if (node.type === 'VariableDeclaration'
+            || node.type === 'FunctionExpression'
+            || node.type === 'FunctionDeclaration'
+        ) {
+            return CMD_SKIP;
+        }
+        else if (node.type === 'ReturnStatement' && node.argument) {
+            type = detectVariableType(node.argument);
+            return CMD_BREAK;
         }
     });
     return type;
 }
 
 // 注释生成处理器
-var handlers = {};
+const handlers = {
+    VariableDeclaration(ast) {
+        let res = {target: 'let'};
+        let name = ast.declarations[0].id.name;
 
-// 变量声明处理器
-handlers.var = function (ast) {
-    var res = {};
-    var name = ast.declarations[0].id.name;
+        // 判断是否是常量
+        if (ast.kind === 'const' || /^[A-Z_]+$/.test(name)) {
+            res.isConst = true;
+        }
 
-    // 判断是否是常量
-    if (ast.kind === 'const' || /^[A-Z_]+$/.test(name)) {
-        res.isConst = true;
-    }
+        // 判断变量类型
+        res.type = detectVariableType(ast.declarations[0].init);
 
-    // 判断变量类型
-    res.type = detectVariableType(ast.declarations[0].init);
+        if (res.type === 'Function'
+            && !res.isConst
+            && isClassName(name)
+        ) {
+            res.isClass = true;
+        }
 
-    if (res.type === 'Function'
-        && !res.isConst
-        && isClassName(name)
-    ) {
-        res.isClass = true;
-    }
-
-    return res;
-};
-
-// 类处理
-handlers.cls = function (ast) {
-    var res = {};
-
-    // 确定基类
-    if (ast.superClass) {
-        res.superClass = ast.superClass.name;
-    }
-
-    return res;
-};
-
-// 方法声明处理
-handlers.method = function (ast) {
-    var res = {
-        isConstructor: ast.kind === 'constructor',
-        isPublic: true,
-        target: 'fn',
-        params: []
-    };
-
-    ast.value.params.forEach(function (item) {
-        res.params.push(item.name);
-    });
-
-    res.returnType = detectReturnType(ast.value);
-
-    return res;
-};
-
-// 函数声明处理器
-handlers.fn = function (ast) {
-    var res = {params: []};
-
-    // 收集参数
-    ast.params.forEach(function (item) {
-        res.params.push(item.name);
-    });
-
-    // 判断是否是class
-    // 可能是匿名的 function 定义
-    if (ast.id) {
-        var name = ast.id.name;
-        res.isClass = isClassName(name);
-    }
-
-    // 如果是class就不用找return了
-    if (res.isClass) {
         return res;
+    },
+
+    FunctionDeclaration(ast) {
+        let res = {target: 'fn', params: []};
+
+        // 收集参数
+        ast.params.forEach(function (item) {
+            res.params.push(item.name);
+        });
+
+        // 判断是否是class
+        // 可能是匿名的 function 定义
+        if (ast.id) {
+            let name = ast.id.name;
+            res.isClass = isClassName(name);
+        }
+
+        // 如果是class就不用找return了
+        if (res.isClass) {
+            return res;
+        }
+
+        res.returnType = detectReturnType(ast.body);
+
+        return res;
+    },
+
+    ClassDeclaration(ast) {
+        let res = {target: 'cls'};
+
+        // 确定基类
+        if (ast.superClass) {
+            res.superClass = ast.superClass.name;
+        }
+
+        if (ast.decorators && ast.decorators.length) {
+            res.line = ast.decorators[0].loc.start.line;
+        }
+
+        return res;
+    },
+
+    ClassMethod(ast) {
+        let res = {
+            isConstructor: ast.kind === 'constructor',
+            isPublic: true,
+            target: 'fn',
+            params: []
+        };
+
+        ast.params.forEach(function (item) {
+            res.params.push(item.name);
+        });
+
+        if (ast.decorators && ast.decorators.length) {
+            res.line = ast.decorators[0].loc.start.line;
+        }
+
+        res.returnType = detectReturnType(ast.body);
+
+        return res;
+    },
+
+    ExportNamedDeclaration(ast, parent) {
+        parent.unshift(ast.declaration);
+        let res = redirect(parent);
+        if (res) {
+            res.isPublic = true;
+        }
+        return res;
+    },
+
+    Decorator(ast, parent) {
+        return redirect(parent);
     }
 
-    res.returnType = detectReturnType(ast);
-
-    return res;
 };
 
-// export 处理
-handlers.define = function (ast) {
-    var ast = ast.declaration;
-    var type = NODE_TYPE[ast.type];
-    if (!type) {
+handlers.ExportDefaultDeclaration = handlers.ExportNamedDeclaration;
+
+function redirect(nodes) {
+    if (!nodes) {
         return;
     }
-    var res = handlers[type](ast);
-    res.isPublic = true;
-    res.target = type;
-    return res;
-};
+
+    let data;
+    let node = nodes.shift();
+    let handler = handlers[node.type];
+
+    if (handler) {
+        data = handler(node, nodes);
+    }
+
+    return data;
+}
 
 /**
  * 获取用户信息
@@ -216,6 +230,82 @@ function queryUserInfo(fileName, user, email) {
     };
 }
 
+function traverse(nodes, fn) {
+    if (!Array.isArray(nodes)) {
+        nodes = [nodes];
+    }
+    else if (!nodes.length) {
+        return;
+    }
+
+    let i;
+    let node;
+    let children = [];
+
+    for (i = 0; i < nodes.length; i++) {
+        node = nodes[i];
+        let cmd = fn(node);
+        if (cmd === CMD_BREAK) {
+            break;
+        }
+        if (cmd !== CMD_SKIP) {
+            children = append(children, node, 'body');
+            children = append(children, node, 'consequent');
+            children = append(children, node, 'alternate');
+        }
+    }
+
+    if (i >= nodes.length) {
+        traverse(children, fn);
+    }
+}
+
+function append(list, node, property) {
+    let value = node[property];
+    if (Array.isArray(value)) {
+        list = list.concat(value);
+    }
+    else if (value) {
+        list.push(value);
+    }
+    return list;
+}
+
+function locate(node, line, parent = []) {
+    if (!node) {
+        return;
+    }
+    else if (node.type === 'File') {
+        return locate(node.program, line);
+    }
+
+    if (node.loc.start.line === line && node.type !== 'Program') {
+        parent.unshift(node);
+        return parent;
+    }
+
+    let children = [];
+    children = append(children, node, 'body');
+    children = append(children, node, 'decorators');
+    children = append(children, node, 'consequent');
+    children = append(children, node, 'alternate');
+    parent.unshift(node);
+
+    let res;
+    for (let child of children) {
+        res = locate(child, line, parent);
+        if (res) {
+            break;
+        }
+    }
+
+    if (!res) {
+        parent.shift();
+    }
+
+    return res;
+}
+
 /**
  * 输出注释
  *
@@ -228,50 +318,43 @@ function queryUserInfo(fileName, user, email) {
 function generate(code, lineNum, fileName, author, email) {
     // 文件头注释
     if (lineNum === 1) {
-        var info = queryUserInfo(fileName, author, email);
-        return process.stdout.write(etpl.render('file', {name: info.user, email: info.email}));
+        let info = queryUserInfo(fileName, author, email);
+        return process.stdout.write(
+            lineNum + '\n' + etpl.render('file', {name: info.user, email: info.email})
+        );
     }
 
-    var options = {loc: true};
+    let options = {sourceType: 'script', plugins: ['decorators']};
     if (/^(import|export)\s/m.test(code)) {
         options.sourceType = 'module';
     }
-    var ast = esprima.parse(code, options);
+    let ast = babylon.parse(code, options);
+    let nodes = locate(ast, lineNum);
 
-    estraverse.traverse(ast, {
-        enter: function (node) {
-            if (node.type === SYNTAX.Program) {
-                return;
-            }
-            if (node.loc.start.line === lineNum) {
-                var data;
-                var type = NODE_TYPE[node.type];
-                if (type && (data = handlers[type](node))) {
-                    var target = data.target || type;
-                    var cmt = etpl.render(target, data);
-                    cmt = cmt.replace(/\n\n+/g, '\n');
-                    process.stdout.write(cmt);
-                }
-                return estraverse.VisitorOption.Break;
-            }
-        }
-    });
+    let data = redirect(nodes);
+    if (data) {
+        let line = data.line || lineNum;
+        let cmt = etpl.render(data.target, data);
+        cmt = cmt.replace(/\n\n+/g, '\n');
+        process.stdout.write(line + '\n' + cmt);
+    }
 }
 
-var code = [];
+let code = [];
 
 process.stdin.setEncoding('utf8');
 
 process.stdin.on('readable', function () {
-    var chunk = process.stdin.read();
+    let chunk = process.stdin.read();
     if (chunk) {
         code.push(chunk);
     }
 });
 
 process.stdin.on('end', function () {
-    var lineNum = parseInt(process.argv[2], 10);
-    var author = process.argv[3];
-    var email = process.argv[4];
-    generate(code.join(''), lineNum, author, email);
+    let lineNum = parseInt(process.argv[2], 10);
+    let fileName = process.argv[3];
+    let author = process.argv[4];
+    let email = process.argv[5];
+    generate(code.join(''), lineNum, fileName, author, email);
 });
