@@ -106,16 +106,16 @@ function s:locate(direction)
 endfunction
 
 " 添加注释
-function s:comment(cursor, code)
+function s:comment(line, code)
     let isSingle = strpart(a:code, 1, 1) == '/'
-    let indentNum = indent(a:cursor[1])
+    let indentNum = indent(a:line)
     let indentStr = join(repeat([' '], indentNum), '')
     let code = split(a:code, "\n")
     call map(code, 'indentStr.v:val')
-    call append(a:cursor[1] - 1, code)
+    call append(a:line - 1, code)
 
     " Locate cursor
-    let lnum = a:cursor[1] + (isSingle ? 0 : 1)
+    let lnum = a:line + (isSingle ? 0 : 1)
     let col = indentNum + 3
     call cursor(lnum, col)
 endfunction
@@ -143,10 +143,16 @@ function s:generate()
     endif
 
     if strlen(cmt) <= 0
-        let cmt = '// '
+        let cursor = getpos('.')
+        let cmt = cursor[1]."\n// "
     endif
 
-    call s:comment(getpos('.'), cmt)
+    let code = split(cmt, "\n")
+    let line = str2nr(code[0])
+    call remove(code, 0)
+    let cmt = join(code, "\n")
+
+    call s:comment(line, cmt)
 endfunction
 
 " 命令注册
