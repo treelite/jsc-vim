@@ -30,6 +30,12 @@ const EXPRESSION_TYPE = {
     ArrowFunctionExpression: 'Function'
 };
 
+/**
+ * 字符常量
+ *
+ * @const
+ * @type {Object}
+ */
 const LITERAL_TYPE = {
     StringLiteral: 'string',
     NumericLiteral: 'number',
@@ -93,6 +99,13 @@ function detectReturnType(ast) {
 
 // 注释生成处理器
 const handlers = {
+
+    /**
+     * 变量声明
+     *
+     * @param {Object} ast AST node
+     * @return {Object}
+     */
     VariableDeclaration(ast) {
         let res = {target: 'let'};
         let name = ast.declarations[0].id.name;
@@ -103,7 +116,9 @@ const handlers = {
         }
 
         // 判断变量类型
-        res.type = detectVariableType(ast.declarations[0].init);
+        if (ast.declarations[0].init) {
+            res.type = detectVariableType(ast.declarations[0].init);
+        }
 
         if (res.type === 'Function'
             && !res.isConst
@@ -115,6 +130,12 @@ const handlers = {
         return res;
     },
 
+    /**
+     * 函数声明
+     *
+     * @param {Object} ast AST node
+     * @return {Object}
+     */
     FunctionDeclaration(ast) {
         let res = {target: 'fn', params: []};
 
@@ -140,6 +161,12 @@ const handlers = {
         return res;
     },
 
+    /**
+     * 类声明
+     *
+     * @param {Object} ast AST node
+     * @return {Object}
+     */
     ClassDeclaration(ast) {
         let res = {target: 'cls'};
 
@@ -155,6 +182,33 @@ const handlers = {
         return res;
     },
 
+    /**
+     * 对象方法
+     *
+     * @param {Object} ast AST node
+     * @return {Object}
+     */
+    ObjectMethod(ast) {
+        let res = {
+            target: 'fn',
+            params: []
+        };
+
+        ast.params.forEach(function (item) {
+            res.params.push(item.name);
+        });
+
+        res.returnType = detectReturnType(ast.body);
+
+        return res;
+    },
+
+    /**
+     * 类方法
+     *
+     * @param {Object} ast AST node
+     * @return {Object}
+     */
     ClassMethod(ast) {
         let res = {
             isConstructor: ast.kind === 'constructor',
@@ -176,6 +230,13 @@ const handlers = {
         return res;
     },
 
+    /**
+     * 具名导出
+     *
+     * @param {Object} ast AST node
+     * @param {Array.<Object>} parent AST nodes
+     * @return {Object}
+     */
     ExportNamedDeclaration(ast, parent) {
         parent.unshift(ast.declaration);
         let res = redirect(parent);
@@ -185,6 +246,13 @@ const handlers = {
         return res;
     },
 
+    /**
+     * 装饰器
+     *
+     * @param {Object} ast AST node
+     * @param {Array.<Object>} parent AST nodes
+     * @return {Object}
+     */
     Decorator(ast, parent) {
         return redirect(parent);
     }
@@ -193,6 +261,12 @@ const handlers = {
 
 handlers.ExportDefaultDeclaration = handlers.ExportNamedDeclaration;
 
+/**
+ * 转移注释信息
+ *
+ * @param {Array.<Object>} nodes 父级 AST
+ * @return {Object}
+ */
 function redirect(nodes) {
     if (!nodes) {
         return;
@@ -230,6 +304,12 @@ function queryUserInfo(fileName, user, email) {
     };
 }
 
+/**
+ * 遍历 AST
+ *
+ * @param {Array.<Object>} nodes AST nodes
+ * @param {Function} fn 处理函数
+ */
 function traverse(nodes, fn) {
     if (!Array.isArray(nodes)) {
         nodes = [nodes];
@@ -260,6 +340,14 @@ function traverse(nodes, fn) {
     }
 }
 
+/**
+ * 追加节点
+ *
+ * @param {Array} list nodes
+ * @param {Object} node AST node
+ * @param {string} property 属性名称
+ * @return {Array}
+ */
 function append(list, node, property) {
     let value = node[property];
     if (Array.isArray(value)) {
@@ -271,6 +359,14 @@ function append(list, node, property) {
     return list;
 }
 
+/**
+ * 定位 AST
+ *
+ * @param {Object} node AST
+ * @param {number} line 行号
+ * @param {Array} parent 父级节点
+ * @return {Object} AST node
+ */
 function locate(node, line, parent = []) {
     if (!node) {
         return;
@@ -289,6 +385,12 @@ function locate(node, line, parent = []) {
     children = append(children, node, 'decorators');
     children = append(children, node, 'consequent');
     children = append(children, node, 'alternate');
+    if (node.type === 'VariableDeclaration') {
+        for (let dec of node.declarations) {
+            // Add properties for ObjectExpression
+            children = append(children, dec.init || {}, 'properties');
+        }
+    }
     parent.unshift(node);
 
     let res;
